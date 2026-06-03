@@ -3,8 +3,23 @@
 import { useState, useMemo } from "react";
 
 const CONTRACT_DAYS = 180;
-const MENTOR_TOTAL = 14;
-const DEFAULT_PRICE = 46800;
+
+const PLANS = [
+  {
+    key: "uiux-portfolio",
+    label: "產品設計【UIUX 作品班】",
+    price: 46800,
+    mentorTotal: 14,
+  },
+  {
+    key: "uiux-project",
+    label: "產品設計【UIUX 專案班】",
+    price: 96800,
+    mentorTotal: 26,
+  },
+] as const;
+
+type PlanKey = (typeof PLANS)[number]["key"];
 
 interface Result {
   elapsedDays: number;
@@ -22,6 +37,7 @@ function calcRefund(
   startDate: Date,
   requestDate: Date,
   usedSessions: number,
+  mentorTotal: number,
   price: number,
   isFault: boolean
 ): Result {
@@ -32,7 +48,7 @@ function calcRefund(
   );
 
   const periodPct = (elapsedDays / CONTRACT_DAYS) * 100;
-  const usedPct = (usedSessions / MENTOR_TOTAL) * 100;
+  const usedPct = (usedSessions / mentorTotal) * 100;
   const effectivePct = Math.max(periodPct, usedPct);
 
   let rule = "";
@@ -88,19 +104,29 @@ function fmt(n: number) {
 export default function Page() {
   const today = new Date().toISOString().split("T")[0];
 
+  const [planKey, setPlanKey] = useState<PlanKey>(PLANS[0].key);
   const [startDate, setStartDate] = useState("");
   const [requestDate, setRequestDate] = useState(today);
   const [usedSessions, setUsedSessions] = useState(0);
-  const [price, setPrice] = useState(DEFAULT_PRICE);
+  const [price, setPrice] = useState<number>(PLANS[0].price);
   const [isFault, setIsFault] = useState(false);
+
+  const plan = PLANS.find((p) => p.key === planKey)!;
+
+  function handlePlanChange(key: PlanKey) {
+    const selected = PLANS.find((p) => p.key === key)!;
+    setPlanKey(key);
+    setPrice(selected.price);
+    setUsedSessions(0);
+  }
 
   const result = useMemo<Result | null>(() => {
     if (!startDate || !requestDate) return null;
     const s = new Date(startDate);
     const r = new Date(requestDate);
     if (isNaN(s.getTime()) || isNaN(r.getTime()) || r < s) return null;
-    return calcRefund(s, r, usedSessions, price, isFault);
-  }, [startDate, requestDate, usedSessions, price, isFault]);
+    return calcRefund(s, r, usedSessions, plan.mentorTotal, price, isFault);
+  }, [startDate, requestDate, usedSessions, plan.mentorTotal, price, isFault]);
 
   const ruleColor: Record<string, string> = {
     規則一: "bg-green-50 border-green-400 text-green-800",
@@ -116,11 +142,47 @@ export default function Page() {
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-bold text-gray-800">退課費用試算系統</h1>
           <p className="text-sm text-gray-500 mt-1">
-            合約期間 6 個月（180 天）・Mentor 總次數 14 次
+            合約期間 6 個月（180 天）
           </p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-5">
+          {/* Plan selector */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              課程方案
+            </label>
+            <div className="space-y-2">
+              {PLANS.map((p) => (
+                <label
+                  key={p.key}
+                  className={`flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-colors ${
+                    planKey === p.key
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="plan"
+                    value={p.key}
+                    checked={planKey === p.key}
+                    onChange={() => handlePlanChange(p.key)}
+                    className="mt-0.5 accent-blue-500"
+                  />
+                  <div>
+                    <div className="text-sm font-medium text-gray-800">
+                      {p.label}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      定價 NT$ {fmt(p.price)}・Mentor {p.mentorTotal} 次
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               合約開始日期
@@ -147,13 +209,13 @@ export default function Page() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              已使用 Mentor 次數（共 14 次）
+              已使用 Mentor 次數（共 {plan.mentorTotal} 次）
             </label>
             <div className="flex items-center gap-4">
               <input
                 type="range"
                 min={0}
-                max={14}
+                max={plan.mentorTotal}
                 value={usedSessions}
                 onChange={(e) => setUsedSessions(Number(e.target.value))}
                 className="flex-1 accent-blue-500"
@@ -167,6 +229,9 @@ export default function Page() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               課程總價（元）
+              <span className="ml-1 text-xs font-normal text-gray-400">
+                可依實際付款金額修改
+              </span>
             </label>
             <input
               type="number"
@@ -205,7 +270,7 @@ export default function Page() {
               />
               <Metric
                 label="已使用次數"
-                value={`${usedSessions} / ${MENTOR_TOTAL} 次`}
+                value={`${usedSessions} / ${plan.mentorTotal} 次`}
                 sub={`次數比例 ${result.usedPct.toFixed(1)}%`}
               />
             </div>
@@ -229,7 +294,15 @@ export default function Page() {
             <div className="space-y-2">
               <Row label="課程總價" value={`NT$ ${fmt(price)}`} />
               <Row
-                label={`應退金額（${result.refundBase === price ? "100" : result.refundBase === Math.round(price * 0.8) ? "80" : result.refundBase === Math.round(price * 0.5) ? "50" : "0"}%）`}
+                label={`應退金額（${
+                  result.refundBase === price
+                    ? "100"
+                    : result.refundBase === Math.round(price * 0.8)
+                    ? "80"
+                    : result.refundBase === Math.round(price * 0.5)
+                    ? "50"
+                    : "0"
+                }%）`}
                 value={`NT$ ${fmt(result.refundBase)}`}
               />
               {result.penalty > 0 && (
