@@ -7,14 +7,26 @@ const CONTRACT_DAYS = 180;
 const PLANS = [
   {
     key: "uiux-portfolio",
-    label: "產品設計【UIUX 作品班】",
+    label: "產品設計【UIUX 作品班】舊約",
     price: 46800,
     mentorTotal: 14,
   },
   {
     key: "uiux-project",
-    label: "產品設計【UIUX 專案班】",
+    label: "產品設計【UIUX 專案班】舊約",
     price: 96800,
+    mentorTotal: 26,
+  },
+  {
+    key: "new-portfolio-2026",
+    label: "產品設計【作品班】新約 2026/06",
+    price: 96800,
+    mentorTotal: 14,
+  },
+  {
+    key: "new-project-2026",
+    label: "產品設計【專案班】新約 2026/06",
+    price: 148000,
     mentorTotal: 26,
   },
 ] as const;
